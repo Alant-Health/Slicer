@@ -61,6 +61,7 @@ endif()
 set(Slicer_USE_PYTHONQT "@Slicer_USE_PYTHONQT@")
 if(Slicer_USE_PYTHONQT)
   _append_search_dir("@PYTHON_LIBRARY_PATH@")
+  _append_search_dir("@PYTHONQT_INSTALL_DIR@/lib")
 endif()
 set(Slicer_USE_PYTHONQT_WITH_OPENSSL "@Slicer_USE_PYTHONQT_WITH_OPENSSL@")
 set(Slicer_USE_DCMTK_WITH_OPENSSL "@Slicer_USE_PYTHONQT_WITH_OPENSSL@")
@@ -101,6 +102,11 @@ endif()
 
 set(extension_libs_path "@EXTENSION_BUNDLE_FIXUP_LIBRARY_DIRECTORIES@")
 foreach(dir ${extension_libs_path})
+  _append_search_dir("${dir}")
+endforeach()
+
+set(application_libs_path "@Slicer_CPACK_BUNDLE_FIXUP_LIBRARY_DIRECTORIES@")
+foreach(dir IN LISTS application_libs_path)
   _append_search_dir("${dir}")
 endforeach()
 
@@ -173,7 +179,7 @@ execute_process(
   ERROR_VARIABLE _codesign_error
   )
 if(NOT _codesign_result EQUAL 0)
-  message(WARNING "Re-signing the application bundle failed:\n${_codesign_error}")
+  message(FATAL_ERROR "Re-signing or verifying the application bundle failed:\n${_codesign_error}")
 endif()
 
 #-----------------------------------------------------------------------------

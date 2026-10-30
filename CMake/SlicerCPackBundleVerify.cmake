@@ -170,6 +170,9 @@ function(_bv_parse binary out_rpaths out_deps out_weak)
     ERROR_QUIET
     RESULT_VARIABLE _rv
     )
+  if(NOT _rv EQUAL 0)
+    message(FATAL_ERROR "Could not inspect native binary: ${binary}")
+  endif()
   set(_rpaths "")
   set(_deps "")
   set(_weak "")
@@ -359,9 +362,17 @@ foreach(_f IN LISTS _maybe_exes)
   endif()
 endforeach()
 
-if(macho_files)
-  list(REMOVE_DUPLICATES macho_files)
-endif()
+set(real_macho_files "")
+foreach(_bin IN LISTS macho_files)
+  get_filename_component(_real_bin "${_bin}" REALPATH)
+  string(FIND "${_real_bin}" "${app_real}/" _inside)
+  if(NOT _inside EQUAL 0)
+    message(FATAL_ERROR "Native binary symlink points outside the bundle: ${_bin}")
+  endif()
+  list(APPEND real_macho_files "${_real_bin}")
+endforeach()
+set(macho_files "${real_macho_files}")
+list(REMOVE_DUPLICATES macho_files)
 
 # -----------------------------------------------------------------------------
 # Verify each Mach-O file. Findings are aggregated by dependency / rpath value so

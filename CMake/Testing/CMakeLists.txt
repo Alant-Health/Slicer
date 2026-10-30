@@ -38,6 +38,14 @@ set_tests_properties(cmake_slicer_python_requirements_test PROPERTIES
   PASS_REGULAR_EXPRESSION "SUCCESS"
   )
 
+if(UNIX AND Slicer_USE_PYTHONQT)
+  add_test(
+    NAME slicer_macos_packaging_test
+    COMMAND "${PYTHON_EXECUTABLE}" "${Slicer_SOURCE_DIR}/Utilities/Scripts/test_slicer_macos_packaging.py"
+    )
+  set_tests_properties(slicer_macos_packaging_test PROPERTIES LABELS CMake TIMEOUT 180)
+endif()
+
 if(UNIX)
   add_test(
     NAME cmake_slicer_extension_cpack_bundle_fixup_path_test

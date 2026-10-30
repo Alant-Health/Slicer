@@ -151,6 +151,12 @@ if(APPLE)
     mark_as_advanced(Slicer_CPACK_BUNDLE_FIXUP_IGNORE_LIBRARY_REGEXES)
   endif()
   mark_as_superbuild(Slicer_CPACK_BUNDLE_FIXUP_IGNORE_LIBRARY_REGEXES:STRING)
+  if(NOT DEFINED Slicer_CPACK_BUNDLE_FIXUP_LIBRARY_DIRECTORIES)
+    set(Slicer_CPACK_BUNDLE_FIXUP_LIBRARY_DIRECTORIES "" CACHE STRING
+      "Additional native library search directories for macOS bundle packaging")
+    mark_as_advanced(Slicer_CPACK_BUNDLE_FIXUP_LIBRARY_DIRECTORIES)
+  endif()
+  mark_as_superbuild(Slicer_CPACK_BUNDLE_FIXUP_LIBRARY_DIRECTORIES:STRING)
 endif()
 
 #-----------------------------------------------------------------------------

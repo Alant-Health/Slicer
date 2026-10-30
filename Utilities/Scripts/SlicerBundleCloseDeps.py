@@ -86,7 +86,7 @@ def scan(path):
     the equivalent separate queries would need.
     """
     out = subprocess.run(["otool", "-l", path],
-                         capture_output=True, text=True, check=False).stdout
+                         capture_output=True, text=True, check=True).stdout
     loads, rpaths, install_id = [], [], None
     command = None
     for line in out.splitlines():
@@ -139,7 +139,7 @@ def is_executable_macho(path):
     launched on its own and so must carry its own run-path for @rpath to resolve.
     """
     out = subprocess.run(["file", "-b", path],
-                         capture_output=True, text=True, check=False).stdout
+                         capture_output=True, text=True, check=True).stdout
     return "Mach-O" in out and "executable" in out
 
 
@@ -216,7 +216,7 @@ def close_deps(app, search_dirs, lib_subdir, ignored=()):
     contents_real = os.path.realpath(contents)
 
     def inside_bundle(path):
-        return os.path.realpath(path).startswith(contents_real)
+        return os.path.realpath(path).startswith(contents_real + os.sep)
 
     def bundle_machos(root):
         found = []
@@ -326,12 +326,18 @@ def close_deps(app, search_dirs, lib_subdir, ignored=()):
             if is_system(ref):
                 continue
             source = resolve(ref, binary_dir, rpaths, search_dirs, exe_dir)
-            if source is None or inside_bundle(source):
-                # Unresolvable (leave as-is) or already internal (resolves via
-                # the application's @loader_path/.. run-path).
+            if source is None:
+                # Leave unresolved dependencies for package verification.
                 continue
-            name = os.path.basename(source)
-            target = embedded[name] if name in embedded else embed(source)
+            if inside_bundle(source):
+                if ref.startswith("@"):
+                    continue
+                # A bare name found through a packaging search directory is not
+                # necessarily resolvable by dyld in the installed application.
+                target = os.path.realpath(source)
+            else:
+                name = os.path.basename(source)
+                target = embedded[name] if name in embedded else embed(source)
             if is_ignored(target, ignored) and target not in ignored_redirects_warned:
                 print("SlicerBundleCloseDeps: warning: redirecting a dependency to "
                       "ignored library %s; its LC_ID_DYLIB is not reset, so dyld "
@@ -351,7 +357,7 @@ def close_deps(app, search_dirs, lib_subdir, ignored=()):
         if not args:
             return
         subprocess.run(["install_name_tool"] + args + [path],
-                       capture_output=True, check=False)
+                       capture_output=True, check=True)
 
     targets = set(id_resets) | set(changes)
     with ThreadPoolExecutor(max_workers=os.cpu_count()) as executor:
@@ -386,7 +392,7 @@ def fix_executable_rpaths(app, ignored=()):
             if wanted.rstrip("/") in [entry.rstrip("/") for entry in rpaths]:
                 continue
             subprocess.run(["install_name_tool", "-add_rpath", wanted, path],
-                           capture_output=True, check=False)
+                           capture_output=True, check=True)
             fixed += 1
     print("SlicerBundleCloseDeps: added a bundle-relative run-path to %d executables" % fixed)
     return fixed
@@ -410,7 +416,7 @@ def strip_external_rpaths(app, ignored=()):
             if os.path.realpath(entry).startswith(contents_real):
                 continue
             subprocess.run(["install_name_tool", "-delete_rpath", entry, path],
-                           capture_output=True, check=False)
+                           capture_output=True, check=True)
             removed += 1
         return removed
 

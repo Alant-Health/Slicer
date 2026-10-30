@@ -22,10 +22,12 @@ Developer ID for distribution/notarization.
 
 import argparse
 import os
+import plistlib
 import re
 import subprocess
 import sys
 from concurrent.futures import ThreadPoolExecutor
+from itertools import groupby
 
 # Mach-O magic numbers (thin and fat, both byte orders).
 _MACHO_MAGIC = {
@@ -79,14 +81,21 @@ def sign(path, identity):
 
 def sign_bundle(app, identity, ignored=()):
     machos, skipped = find_machos(app, ignored)
+    with open(os.path.join(app, "Contents", "Info.plist"), "rb") as stream:
+        executable = plistlib.load(stream)["CFBundleExecutable"]
+    entry = os.path.join(app, "Contents", "MacOS", executable)
+    # Signing the entry executable may seal its enclosing app. Leave that to
+    # the final signing step, after every nested binary has been processed.
+    machos = [path for path in machos if path != entry]
     # Deepest paths first so nested code is sealed before its container.
     machos.sort(key=lambda path: path.count(os.sep), reverse=True)
 
     failures = []
     with ThreadPoolExecutor(max_workers=os.cpu_count()) as executor:
-        for path, code, error in executor.map(lambda p: sign(p, identity), machos):
-            if code != 0:
-                failures.append((path, error))
+        for _depth, group in groupby(machos, key=lambda path: path.count(os.sep)):
+            for path, code, error in executor.map(lambda p: sign(p, identity), group):
+                if code != 0:
+                    failures.append((path, error))
     print("SlicerSignBundleMacOS: signed %d Mach-O files (%d failures)"
           % (len(machos), len(failures)))
     for path, error in failures[:20]:
@@ -95,6 +104,8 @@ def sign_bundle(app, identity, ignored=()):
         print("SlicerSignBundleMacOS: ignored %d Mach-O file(s), left unsigned:" % len(skipped))
         for path in skipped:
             print("  ignored:", path)
+    if failures:
+        return False
 
     # Seal the application bundle itself last.
     result = subprocess.run(
@@ -106,7 +117,17 @@ def sign_bundle(app, identity, ignored=()):
     if result.returncode != 0:
         print("SlicerSignBundleMacOS: signing the application bundle failed:\n"
               + result.stderr, file=sys.stderr)
-    return len(failures) == 0 and result.returncode == 0
+        return False
+    verification = subprocess.run(
+        ["codesign", "--verify", "--deep", "--strict", app],
+        capture_output=True,
+        text=True,
+        check=False,
+    )
+    if verification.returncode != 0:
+        print("SlicerSignBundleMacOS: signature verification failed:\n"
+              + verification.stderr, file=sys.stderr)
+    return verification.returncode == 0
 
 
 def main(argv):
