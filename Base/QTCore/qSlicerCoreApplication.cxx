@@ -362,22 +362,6 @@ void qSlicerCoreApplicationPrivate::initializeEnvironmentFromLauncher()
   // Add 'SLICER_SHARE_DIR' to the environment so that Tcl scripts can reference
   // their dependencies.
   q->setEnvironmentVariable("SLICER_SHARE_DIR", Slicer_SHARE_DIR);
-
-  // Load default settings if any.
-  if (q->defaultSettings())
-  {
-    for (const QString& key : q->defaultSettings()->allKeys())
-    {
-      if (!q->userSettings()->contains(key))
-      {
-        q->userSettings()->setValue(key, q->defaultSettings()->value(key));
-      }
-      if (!q->revisionUserSettings()->contains(key))
-      {
-        q->revisionUserSettings()->setValue(key, q->defaultSettings()->value(key));
-      }
-    }
-  }
 }
 
 //-----------------------------------------------------------------------------
@@ -394,6 +378,22 @@ void qSlicerCoreApplicationPrivate::init()
   // This guarantees that any options affecting later initialization
   // operate with a complete environment.
   this->parseArguments();
+
+  // Select the settings profile after parsing --disable-settings and --testing.
+  if (QSettings* defaults = q->defaultSettings())
+  {
+    for (const QString& key : defaults->allKeys())
+    {
+      if (!q->userSettings()->contains(key))
+      {
+        q->userSettings()->setValue(key, defaults->value(key));
+      }
+      if (!q->revisionUserSettings()->contains(key))
+      {
+        q->revisionUserSettings()->setValue(key, defaults->value(key));
+      }
+    }
+  }
 
   // Create the application Logic object,
   this->AppLogic = vtkSmartPointer<vtkSlicerApplicationLogic>::New();
@@ -1437,15 +1437,15 @@ void qSlicerCoreApplication::handleCommandLineArguments()
 QSettings* qSlicerCoreApplication::defaultSettings() const
 {
   Q_D(const qSlicerCoreApplication);
-  if (!QFile(this->slicerDefaultSettingsFilePath()).exists())
-  {
-    return nullptr;
-  }
   qSlicerCoreApplication* mutable_self = const_cast<qSlicerCoreApplication*>(this);
   qSlicerCoreApplicationPrivate* mutable_d = const_cast<qSlicerCoreApplicationPrivate*>(d);
   // If required, instantiate Settings
   if (!mutable_d->DefaultSettings)
   {
+    if (!QFile(this->slicerDefaultSettingsFilePath()).exists())
+    {
+      return nullptr;
+    }
     mutable_d->DefaultSettings = new QSettings(this->slicerDefaultSettingsFilePath(), QSettings::IniFormat, mutable_self);
   }
   return mutable_d->DefaultSettings;

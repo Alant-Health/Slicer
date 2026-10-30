@@ -57,6 +57,7 @@ if(BUILD_TESTING)
   set(KIT_TEST_SRCS
     qSlicerAbstractCoreModuleTest1.cxx
     qSlicerCoreApplicationTest1.cxx
+    qSlicerCoreApplicationSettingsTest.cxx
     qSlicerCoreIOManagerTest1.cxx
     qSlicerLoadableModuleFactoryTest1.cxx
     qSlicerUtilsTest1.cxx
@@ -124,6 +125,14 @@ if(BUILD_TESTING)
 
   simple_test( qSlicerCoreApplicationTest1)
   set_property(TEST qSlicerCoreApplicationTest1 PROPERTY LABELS ${LIBRARY_NAME})
+  simple_test(qSlicerCoreApplicationSettingsNormal
+    DRIVER_TESTNAME qSlicerCoreApplicationSettingsTest)
+  simple_test(qSlicerCoreApplicationSettingsDisabled
+    DRIVER_TESTNAME qSlicerCoreApplicationSettingsTest --disable-settings)
+  simple_test(qSlicerCoreApplicationSettingsKeepTemporary
+    DRIVER_TESTNAME qSlicerCoreApplicationSettingsTest --disable-settings --keep-temporary-settings)
+  simple_test(qSlicerCoreApplicationSettingsTesting
+    DRIVER_TESTNAME qSlicerCoreApplicationSettingsTest --testing)
   simple_test( qSlicerCoreIOManagerTest1 ${TEMP})
   set_property(TEST qSlicerCoreIOManagerTest1 PROPERTY LABELS ${LIBRARY_NAME})
   simple_test( qSlicerAbstractCoreModuleTest1 )
