@@ -774,6 +774,9 @@ mark_as_superbuild(Slicer_USE_SYSTEM_QT:BOOL)
 #-----------------------------------------------------------------------------
 set(Slicer_QtPlugins_DIR "${CMAKE_INSTALL_LIBDIR}/QtPlugins")
 set(Slicer_INSTALL_QtPlugins_DIR "${Slicer_INSTALL_ROOT}${Slicer_QtPlugins_DIR}")
+option(Slicer_INSTALL_QT_SQLITE_ONLY "Install only the SQLite Qt SQL driver" OFF)
+mark_as_advanced(Slicer_INSTALL_QT_SQLITE_ONLY)
+mark_as_superbuild(Slicer_INSTALL_QT_SQLITE_ONLY:BOOL)
 
 #-----------------------------------------------------------------------------
 # Qt
