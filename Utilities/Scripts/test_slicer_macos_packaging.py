@@ -186,6 +186,66 @@ class NativeBundleTest(PackageFixture):
         result = subprocess.run([str(self.entry)], check=False, capture_output=True, text=True)
         self.assertEqual(result.returncode, 0, result.stdout + result.stderr)
 
+    def test_universal_framework_runs_after_complete_packaging(self):
+        sdk = self.root / "sdk"
+        framework = sdk / "QtFixture.framework"
+        version = framework / "Versions/A"
+        library = version / "QtFixture"
+        identity = "@rpath/QtFixture.framework/Versions/A/QtFixture"
+        universal = ["-arch", "arm64", "-arch", "x86_64"]
+        self.compile(library, "int dependency(void) { return 0; }",
+                     [*universal, "-dynamiclib", "-Wl,-install_name," + identity,
+                      "-Wl,-rpath," + str(sdk)])
+        resources = version / "Resources"
+        resources.mkdir()
+        (resources / "Info.plist").write_bytes(plistlib.dumps({
+            "CFBundleExecutable": "QtFixture",
+            "CFBundleIdentifier": "org.slicer.packagingtest.framework",
+            "CFBundlePackageType": "FMWK",
+            "CFBundleVersion": "1",
+        }))
+        helper_app = version / "Helpers/QtFixtureProcess.app"
+        helper = helper_app / "Contents/MacOS/QtFixtureProcess"
+        self.compile(helper, "int dependency(void); int main(void) { return dependency(); }",
+                     [*universal, str(library), "-Wl,-rpath," + str(sdk)])
+        (helper_app / "Contents/Info.plist").write_bytes(plistlib.dumps({
+            "CFBundleExecutable": "QtFixtureProcess",
+            "CFBundleIdentifier": "org.slicer.packagingtest.helper",
+            "CFBundlePackageType": "APPL",
+            "CFBundleVersion": "1",
+        }))
+        (framework / "Versions/Current").symlink_to("A")
+        for name in ("QtFixture", "Resources", "Helpers"):
+            (framework / name).symlink_to("Versions/Current/" + name)
+        self.compile(self.entry, "int dependency(void); int main(void) { return dependency(); }",
+                     [str(library), "-Wl,-rpath," + str(sdk)])
+
+        try:
+            self.assertEqual(close.main(["--app", str(self.app), "--search-path", str(sdk),
+                                         "--lib-subdir", "lib/Slicer-5.13"]), 0)
+        except subprocess.CalledProcessError as error:
+            self.fail(f"{error.cmd}: {error.stderr.decode()}")
+        packaged_framework = self.contents / "Frameworks/QtFixture.framework"
+        packaged_library = packaged_framework / "Versions/A/QtFixture"
+        packaged_helper = packaged_framework / "Versions/A" / helper.relative_to(version)
+        architectures = subprocess.run(["lipo", "-archs", str(packaged_library)],
+                                        capture_output=True, text=True, check=True).stdout.split()
+        self.assertEqual(set(architectures), {"arm64", "x86_64"})
+        self.assertTrue((packaged_framework / "QtFixture").is_symlink())
+        self.assertTrue((packaged_framework / "Helpers").is_symlink())
+        for binary in (self.entry, packaged_library, packaged_helper):
+            self.assertNotIn(str(sdk), close.scan(str(binary))[1])
+        self.assertTrue(signer.sign_bundle(str(self.app), "-"))
+        verification = subprocess.run([
+            "cmake", "-DSlicer_INSTALL_DIR=" + str(self.root),
+            "-P", str(SOURCE / "CMake/SlicerCPackBundleVerify.cmake"),
+        ], capture_output=True, text=True, check=False)
+        self.assertEqual(verification.returncode, 0, verification.stdout + verification.stderr)
+        sdk.rename(self.root / "unavailable-sdk")
+        for executable in (self.entry, packaged_helper):
+            result = subprocess.run([str(executable)], check=False, capture_output=True, text=True)
+            self.assertEqual(result.returncode, 0, result.stdout + result.stderr)
+
     def test_optional_library_loads_without_preloading(self):
         external = self.root / "build/torch/lib/libtorch_cpu.dylib"
         target = self.contents / "lib/Python/site-packages/torch/lib/libtorch_cpu.dylib"

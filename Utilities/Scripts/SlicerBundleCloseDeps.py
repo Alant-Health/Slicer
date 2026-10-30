@@ -410,7 +410,8 @@ def strip_external_rpaths(app, ignored=()):
     def strip(path):
         _loads, rpaths, _id = scan(path)
         removed = 0
-        for entry in rpaths:
+        # otool repeats a universal binary's run-paths for each architecture.
+        for entry in dict.fromkeys(rpaths):
             if entry.startswith("@"):
                 continue
             if os.path.realpath(entry).startswith(contents_real):
