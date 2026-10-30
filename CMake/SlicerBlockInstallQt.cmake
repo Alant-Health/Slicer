@@ -56,13 +56,19 @@ endif()
         "Qt${CTK_QT_VERSION}::DesignerComponents"
         )
     else()
-      # Qt6 doesn't provide a CMake module for DesignerComponents
       find_package(Qt${CTK_QT_VERSION} REQUIRED COMPONENTS
         Designer
         )
       list(APPEND QT_LIBRARIES
         "Qt${CTK_QT_VERSION}::Designer"
         )
+      if(UNIX AND NOT APPLE)
+        # Newer Qt 6 SDKs expose Designer's shared dependency as a private target.
+        find_package(Qt${CTK_QT_VERSION} QUIET OPTIONAL_COMPONENTS DesignerComponentsPrivate)
+        if(TARGET Qt${CTK_QT_VERSION}::DesignerComponentsPrivate)
+          list(APPEND QT_LIBRARIES Qt${CTK_QT_VERSION}::DesignerComponentsPrivate)
+        endif()
+      endif()
     endif()
   endif()
 

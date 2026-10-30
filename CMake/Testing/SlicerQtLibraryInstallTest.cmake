@@ -15,7 +15,7 @@ function(check_qt_install major minor)
   set(sdk "${root}/sdk")
   set(stage "${root}/install")
   file(REMOVE_RECURSE "${root}")
-  file(MAKE_DIRECTORY "${sdk}/lib" "${sdk}/libexec" "${sdk}/resources"
+  file(MAKE_DIRECTORY "${sdk}/lib" "${sdk}/libexec" "${sdk}/bin" "${sdk}/resources"
     "${sdk}/translations/qtwebengine_locales" "${root}/source")
   set(modules Core Gui DBus X11Extras Qml QmlModels Positioning)
   set(dependencies_QmlModels Qml)
@@ -35,6 +35,13 @@ function(check_qt_install major minor)
   if(major EQUAL 5)
     list(APPEND modules WebEngine)
     set(dependencies_WebEngine WebEngineCore)
+  endif()
+  list(APPEND modules Designer)
+  set(designer_module Designer)
+  if(major EQUAL 5 OR minor GREATER_EQUAL 11)
+    list(APPEND modules DesignerComponents)
+    set(dependencies_DesignerComponents Designer)
+    set(designer_module DesignerComponents)
   endif()
   set(imported_targets "")
   foreach(module IN LISTS modules)
@@ -56,9 +63,13 @@ function(check_qt_install major minor)
       COMMAND_ERROR_IS_FATAL ANY)
     file(CREATE_LINK "${name}.${major}.${minor}.0" "${sdk}/lib/${name}.${major}" SYMBOLIC)
     file(CREATE_LINK "${name}.${major}" "${sdk}/lib/${name}" SYMBOLIC)
+    set(target_module "${module}")
+    if(major EQUAL 6 AND module STREQUAL "DesignerComponents")
+      set(target_module DesignerComponentsPrivate)
+    endif()
     string(APPEND imported_targets
-      "add_library(Qt${major}::${module} SHARED IMPORTED)\n"
-      "set_target_properties(Qt${major}::${module} PROPERTIES\n"
+      "add_library(Qt${major}::${target_module} SHARED IMPORTED)\n"
+      "set_target_properties(Qt${major}::${target_module} PROPERTIES\n"
       "  IMPORTED_LOCATION_RELEASE \"${sdk}/lib/${name}.${major}.${minor}.0\")\n")
   endforeach()
   file(WRITE "${root}/main.c"
@@ -67,6 +78,12 @@ function(check_qt_install major minor)
   execute_process(COMMAND "${TEST_C_COMPILER}" "-Wl,--no-as-needed" "${root}/main.c" "-L${sdk}/lib"
     "-lQt${major}WebEngineCore" "-lQt${major}Multimedia" "-Wl,-rpath-link,${sdk}/lib"
     -o "${sdk}/libexec/QtWebEngineProcess" COMMAND_ERROR_IS_FATAL ANY)
+  file(WRITE "${root}/designer.c"
+    "int fixture_${designer_module}(void);\n"
+    "int main(void) { return fixture_${designer_module}(); }\n")
+  execute_process(COMMAND "${TEST_C_COMPILER}" "-Wl,--no-as-needed" "${root}/designer.c" "-L${sdk}/lib"
+    "-lQt${major}${designer_module}" "-Wl,-rpath-link,${sdk}/lib"
+    -o "${sdk}/bin/designer" COMMAND_ERROR_IS_FATAL ANY)
   file(WRITE "${sdk}/translations/qtwebengine_locales/en-US.pak" "fixture locale\n")
   file(WRITE "${root}/source/FindQt${major}.cmake" "set(Qt${major}_FOUND TRUE)\n")
   if(major EQUAL 6)
@@ -91,7 +108,7 @@ set(Qt5_VERSION_PATCH 0)
 set(Slicer_INSTALL_ROOT .)
 set(Slicer_INSTALL_LIB_DIR lib/application)
 set(Slicer_INSTALL_QtPlugins_DIR lib/QtPlugins)
-set(Slicer_BUILD_QT_DESIGNER_PLUGINS OFF)
+set(Slicer_BUILD_QT_DESIGNER_PLUGINS ON)
 ${imported_targets}
 set(QT_LIBRARIES Qt${major}::Core Qt${major}::Quick Qt${major}::QuickWidgets
   Qt${major}::${webengine} Qt${major}::Multimedia)
@@ -109,12 +126,14 @@ include(\"${Slicer_SOURCE_DIR}/CMake/SlicerBlockInstallQt.cmake\")
     endif()
   endforeach()
   file(RENAME "${sdk}" "${root}/unavailable-sdk")
-  execute_process(COMMAND "${CMAKE_COMMAND}" -E env --unset=LD_PRELOAD
-    "LD_LIBRARY_PATH=${stage}/lib/application" "${stage}/libexec/QtWebEngineProcess"
-    RESULT_VARIABLE result ERROR_VARIABLE error)
-  if(NOT result EQUAL 0)
-    message(FATAL_ERROR "Qt ${major}.${minor} package cannot load without its SDK: ${error}")
-  endif()
+  foreach(executable libexec/QtWebEngineProcess bin/designer-real)
+    execute_process(COMMAND "${CMAKE_COMMAND}" -E env --unset=LD_PRELOAD
+      "LD_LIBRARY_PATH=${stage}/lib/application" "${stage}/${executable}"
+      RESULT_VARIABLE result ERROR_VARIABLE error)
+    if(NOT result EQUAL 0)
+      message(FATAL_ERROR "Qt ${major}.${minor} ${executable} cannot load without its SDK: ${error}")
+    endif()
+  endforeach()
 endfunction()
 
 function(check_windows_deploy_arguments major)
