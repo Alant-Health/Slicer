@@ -343,7 +343,7 @@ def close_deps(app, search_dirs, lib_subdir, ignored=()):
                       "ignored library %s; its LC_ID_DYLIB is not reset, so dyld "
                       "may load a separate copy instead of coalescing it" % target)
                 ignored_redirects_warned.add(target)
-            new_ref = "@rpath/" + os.path.relpath(target, contents)
+            new_ref = "@rpath/" + os.path.relpath(os.path.realpath(target), contents_real)
             if new_ref != ref:
                 changes.setdefault(current, []).append((ref, new_ref))
 

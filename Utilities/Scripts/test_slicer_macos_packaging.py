@@ -57,11 +57,16 @@ class DependencyResolutionTest(PackageFixture):
         identity = "@rpath/lib/Slicer-5.13/libDependency.dylib"
         consumer = self.binary(self.entry, loads=["libDependency.dylib"])
         target = self.binary(library, identity=identity)
-        metadata = {consumer: (["libDependency.dylib"], [], None), target: ([], [], identity)}
-        with mock.patch.object(close, "scan", side_effect=metadata.__getitem__), mock.patch.object(close.subprocess, "run") as tool:
-            close.close_deps(str(self.app), [str(library.parent)], "lib/Slicer-5.13")
-        changes = [call.args[0] for call in tool.call_args_list]
-        self.assertIn(["install_name_tool", "-change", "libDependency.dylib", identity, consumer], changes)
+        metadata = {os.path.realpath(consumer): (["libDependency.dylib"], [], None),
+                    os.path.realpath(target): ([], [], identity)}
+        alias = self.root / "directory-link"
+        alias.symlink_to(self.root, target_is_directory=True)
+        for app in (self.app, alias / self.app.name):
+            with self.subTest(app=app), mock.patch.object(close, "scan", side_effect=lambda path: metadata[os.path.realpath(path)]), mock.patch.object(close.subprocess, "run") as tool:
+                close.close_deps(str(app), [str(library.parent)], "lib/Slicer-5.13")
+            changes = [call.args[0] for call in tool.call_args_list]
+            self.assertIn(["install_name_tool", "-change", "libDependency.dylib", identity,
+                           str(app / "Contents/MacOS/Example")], changes)
 
     def test_external_search_directory_reuses_bundled_library(self):
         library = self.contents / "lib/Python/site-packages/torch/lib/libtorch_cpu.dylib"
@@ -178,7 +183,8 @@ class NativeBundleTest(PackageFixture):
                      [str(library), "-Wl,-rpath,@loader_path/../"])
         self.assertTrue(close.close_deps(str(self.app), [str(library.parent)], "lib/Slicer-5.13"))
         self.assertTrue(signer.sign_bundle(str(self.app), "-"))
-        subprocess.run([str(self.entry)], check=True, capture_output=True)
+        result = subprocess.run([str(self.entry)], check=False, capture_output=True, text=True)
+        self.assertEqual(result.returncode, 0, result.stdout + result.stderr)
 
     def test_optional_library_loads_without_preloading(self):
         external = self.root / "build/torch/lib/libtorch_cpu.dylib"
@@ -201,7 +207,8 @@ class NativeBundleTest(PackageFixture):
         self.assertNotEqual(before.returncode, 0)
         self.assertTrue(close.close_deps(str(self.app), [str(external.parent)], "lib/Slicer-5.13"))
         self.assertTrue(signer.sign_bundle(str(self.app), "-"))
-        subprocess.run([str(self.entry), str(consumer)], check=True, capture_output=True)
+        result = subprocess.run([str(self.entry), str(consumer)], check=False, capture_output=True, text=True)
+        self.assertEqual(result.returncode, 0, result.stdout + result.stderr)
 
 
 if __name__ == "__main__":
