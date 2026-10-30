@@ -394,6 +394,9 @@ void qSlicerCoreApplicationPrivate::init()
       }
     }
   }
+  // Initialize (and, if requested, clear) revision settings before other consumers
+  // such as the extension manager open their file directly.
+  q->revisionUserSettings();
 
   // Create the application Logic object,
   this->AppLogic = vtkSmartPointer<vtkSlicerApplicationLogic>::New();
@@ -1479,6 +1482,10 @@ QSettings* qSlicerCoreApplication::revisionUserSettings() const
   if (!mutable_d->RevisionUserSettings)
   {
     mutable_d->RevisionUserSettings = new QSettings(this->slicerRevisionUserSettingsFilePath(), QSettings::IniFormat, const_cast<qSlicerCoreApplication*>(this));
+    if (this->coreCommandOptions()->settingsDisabled() && !this->coreCommandOptions()->keepTemporarySettings())
+    {
+      mutable_d->RevisionUserSettings->clear();
+    }
   }
   return mutable_d->RevisionUserSettings;
 }
@@ -1790,13 +1797,8 @@ QString qSlicerCoreApplication::slicerRevisionUserSettingsFilePath() const
   if (useTmp)
   {
     suffix += "-tmp";
-    useTmp = true;
   }
   QString fileName = QDir(filePath).filePath(QString("%1%2%3.ini").arg(prefix).arg(SLICER_REVISION_SPECIFIC_USER_SETTINGS_FILEBASENAME).arg(suffix));
-  if (useTmp && !this->coreCommandOptions()->keepTemporarySettings())
-  {
-    QSettings(fileName, QSettings::IniFormat).clear();
-  }
   return fileName;
 }
 

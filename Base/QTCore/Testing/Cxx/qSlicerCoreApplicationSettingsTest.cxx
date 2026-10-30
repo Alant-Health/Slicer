@@ -18,6 +18,7 @@
 #include "qSlicerCoreApplication.h"
 #include "qSlicerCoreCommandOptions.h"
 #include "vtkSlicerConfigure.h"
+#include "vtkSlicerVersionConfigure.h"
 
 #include <QDir>
 #include <QFile>
@@ -35,7 +36,11 @@ int qSlicerCoreApplicationSettingsTest(int argc, char* argv[])
     std::cerr << "Cannot create isolated settings directory" << std::endl;
     return EXIT_FAILURE;
   }
-  const QString home = temporaryDirectory.path();
+  const QString home = temporaryDirectory.path() + "/SettingsTest.app/Contents";
+  if (!QDir().mkpath(home))
+  {
+    return EXIT_FAILURE;
+  }
   qputenv("SLICER_HOME", home.toUtf8());
   QSettings::setPath(QSettings::IniFormat, QSettings::UserScope, home + "/user");
   QSettings::setPath(QSettings::IniFormat, QSettings::SystemScope, home + "/system");
@@ -64,6 +69,12 @@ int qSlicerCoreApplicationSettingsTest(int argc, char* argv[])
   previousTemporary.setValue("SettingsTest/Override", "kept");
   previousTemporary.setValue("SettingsTest/TemporaryOnly", true);
   previousTemporary.sync();
+  const QString temporaryRevisionDirectory = qSlicerCoreApplication::revisionUserSettingsDirectory(home, applicationName + "-tmp");
+  QSettings previousRevision(temporaryRevisionDirectory + "/" + applicationName + "-tmp" SLICER_REVISION_SPECIFIC_USER_SETTINGS_FILEBASENAME "-" Slicer_REVISION "-tmp.ini",
+                             QSettings::IniFormat);
+  previousRevision.setValue("SettingsTest/Override", "kept");
+  previousRevision.setValue("SettingsTest/TemporaryOnly", true);
+  previousRevision.sync();
 
   const QString defaultsPath = home + "/" Slicer_SHARE_DIR "/" + applicationName + "DefaultSettings.ini";
   QSettings defaults(defaultsPath, QSettings::IniFormat);
@@ -71,8 +82,11 @@ int qSlicerCoreApplicationSettingsTest(int argc, char* argv[])
   defaults.setValue("SettingsTest/DefaultOnly", true);
   defaults.setValue("Extensions/AutoUpdateCheck", false);
   defaults.setValue("ApplicationUpdate/AutoUpdateCheck", false);
+  defaults.setValue("TemporaryPath", home + "/temporary");
+  defaults.setValue("Cache/Path", home + "/cache");
   defaults.sync();
-  if (ordinary.status() != QSettings::NoError || previousTemporary.status() != QSettings::NoError || defaults.status() != QSettings::NoError)
+  if (ordinary.status() != QSettings::NoError || previousTemporary.status() != QSettings::NoError || previousRevision.status() != QSettings::NoError
+      || defaults.status() != QSettings::NoError)
   {
     std::cerr << "Cannot write settings fixture" << std::endl;
     return EXIT_FAILURE;
@@ -99,14 +113,22 @@ int qSlicerCoreApplicationSettingsTest(int argc, char* argv[])
   }
   if (!app.defaultSettings() || app.defaultSettings()->fileName() != defaultsPath || userSettings->value("SettingsTest/Override").toString() != expectedValue
       || !userSettings->value("SettingsTest/DefaultOnly").toBool() || userSettings->contains("SettingsTest/OrdinaryOnly") == temporary
-      || userSettings->contains("SettingsTest/TemporaryOnly") != (temporary && keep) || revisionSettings->value("SettingsTest/Override").toString() != "default"
-      || !revisionSettings->value("SettingsTest/DefaultOnly").toBool())
+      || userSettings->contains("SettingsTest/TemporaryOnly") != (temporary && keep)
+      || revisionSettings->value("SettingsTest/Override").toString() != (temporary && keep ? "kept" : "default")
+      || revisionSettings->contains("SettingsTest/TemporaryOnly") != (temporary && keep) || !revisionSettings->value("SettingsTest/DefaultOnly").toBool())
   {
     std::cerr << "Defaults, existing values, or temporary settings were not preserved as requested" << std::endl;
     return EXIT_FAILURE;
   }
   userSettings->sync();
+  revisionSettings->setValue("SettingsTest/PathLookup", true);
   revisionSettings->sync();
+  QSettings revisionFile(app.slicerRevisionUserSettingsFilePath(), QSettings::IniFormat);
+  if (!revisionFile.value("SettingsTest/PathLookup").toBool())
+  {
+    std::cerr << "Resolving the revision settings path cleared its contents" << std::endl;
+    return EXIT_FAILURE;
+  }
   if (temporary)
   {
     if (!ordinaryFile.open(QIODevice::ReadOnly) || ordinaryFile.readAll() != ordinaryContents)
