@@ -113,24 +113,27 @@ if(Slicer_BUILD_QT_DESIGNER_PLUGINS)
     APPLICATION_INSTALL_SUBDIR "${installed_designer_subdir}"
     ADDITIONAL_SETTINGS_FILEPATH_INSTALLED "<APPLAUNCHER_SETTINGS_DIR>/${Slicer_MAIN_PROJECT_APPLICATION_NAME}LauncherSettings.ini"
     )
-  # Install designer launcher settings
-  install(
-    FILES ${CMAKE_BINARY_DIR}/${Slicer_BIN_DIR}/${executablename}LauncherSettingsToInstall.ini
-    DESTINATION ${Slicer_INSTALL_BIN_DIR}
-    RENAME ${executablename}LauncherSettings.ini
-    COMPONENT Runtime
-    )
-  # Install designer launcher
-  set(_launcher CTKAppLauncher)
-  if(Slicer_BUILD_WIN32_CONSOLE)
-    set(_launcher CTKAppLauncherW)
+  # Designer.app is not bundled on macOS; keep its launcher in the build tree.
+  if(NOT APPLE)
+    # Install designer launcher settings
+    install(
+      FILES ${CMAKE_BINARY_DIR}/${Slicer_BIN_DIR}/${executablename}LauncherSettingsToInstall.ini
+      DESTINATION ${Slicer_INSTALL_BIN_DIR}
+      RENAME ${executablename}LauncherSettings.ini
+      COMPONENT Runtime
+      )
+    # Install designer launcher
+    set(_launcher CTKAppLauncher)
+    if(Slicer_BUILD_WIN32_CONSOLE)
+      set(_launcher CTKAppLauncherW)
+    endif()
+    install(
+      PROGRAMS ${CTKAppLauncher_DIR}/bin/${_launcher}${CMAKE_EXECUTABLE_SUFFIX}
+      DESTINATION ${Slicer_INSTALL_BIN_DIR}
+      RENAME ${executablename}${CMAKE_EXECUTABLE_SUFFIX}
+      COMPONENT Runtime
+      )
   endif()
-  install(
-    PROGRAMS ${CTKAppLauncher_DIR}/bin/${_launcher}${CMAKE_EXECUTABLE_SUFFIX}
-    DESTINATION ${Slicer_INSTALL_BIN_DIR}
-    RENAME ${executablename}${CMAKE_EXECUTABLE_SUFFIX}
-    COMPONENT Runtime
-    )
 endif()
 
 # -------------------------------------------------------------------------
