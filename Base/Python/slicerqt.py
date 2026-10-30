@@ -48,7 +48,18 @@ class SlicerApplicationLogHandler(logging.Handler):
         self.origin = "Python"
         self.category = "Python"
 
+    def close(self):
+        # Finish any current emission before Qt starts tearing down.
+        self.acquire()
+        try:
+            self._closed = True
+        finally:
+            self.release()
+        logging.Handler.close(self)
+
     def emit(self, record):
+        if self._closed:
+            return
         try:
             # Add application log entry
             msg = self.format(record)
@@ -156,6 +167,7 @@ class _Internal:
     def __init__(self):
         # Set attribute 'slicer.app'
         setattr(slicer, "app", _qSlicerCoreApplicationInstance)
+        slicer.app.connect("aboutToQuit()", slicer.pythonApplicationLogHandler.close)
 
         # Listen factory and module manager to update slicer.{modules, moduleNames} when appropriate
         moduleManager = slicer.app.moduleManager()

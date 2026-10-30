@@ -106,3 +106,19 @@ install(FILES ${_lazy_vtk_module}
   DESTINATION ${Slicer_INSTALL_BIN_DIR}/Python
   COMPONENT Runtime
   )
+
+if(BUILD_TESTING)
+  slicer_add_python_unittest(
+    SCRIPT ${CMAKE_CURRENT_SOURCE_DIR}/tests/test_Logging.py
+    SLICER_ARGS --no-main-window --disable-modules
+    TESTNAME_PREFIX nomainwindow_
+    )
+
+  add_test(
+    NAME py_nomainwindow_SlicerPythonLoggingShutdownTest
+    COMMAND ${PYTHON_EXECUTABLE}
+      ${CMAKE_CURRENT_SOURCE_DIR}/tests/SlicerPythonLoggingShutdownTest.py
+      ${Slicer_LAUNCHER_EXECUTABLE}
+    )
+  set_tests_properties(py_nomainwindow_SlicerPythonLoggingShutdownTest PROPERTIES TIMEOUT 200)
+endif()
