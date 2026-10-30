@@ -156,7 +156,8 @@ if(APPLE)
       "Additional native library search directories for macOS bundle packaging")
     mark_as_advanced(Slicer_CPACK_BUNDLE_FIXUP_LIBRARY_DIRECTORIES)
   endif()
-  mark_as_superbuild(Slicer_CPACK_BUNDLE_FIXUP_LIBRARY_DIRECTORIES:STRING)
+  # Forward application-added paths without storing them in the user cache.
+  mark_as_superbuild(Slicer_CPACK_BUNDLE_FIXUP_LIBRARY_DIRECTORIES:INTERNAL)
 endif()
 
 #-----------------------------------------------------------------------------
