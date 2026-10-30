@@ -73,4 +73,16 @@ if(CMAKE_SYSTEM_NAME STREQUAL "Linux" AND NOT CMAKE_CROSSCOMPILING)
     LABELS CMake
     PASS_REGULAR_EXPRESSION "SUCCESS"
     )
+  add_test(
+    NAME cmake_slicer_gssapi_stub_test
+    COMMAND ${CMAKE_COMMAND}
+      "-DSlicer_SOURCE_DIR=${Slicer_SOURCE_DIR}"
+      "-DTEST_BINARY_DIR=${CMAKE_CURRENT_BINARY_DIR}/SlicerGSSAPIStubTest"
+      "-DTEST_C_COMPILER=${CMAKE_C_COMPILER}"
+      -P "${CMAKE_CURRENT_SOURCE_DIR}/SlicerGSSAPIStubTest.cmake"
+    )
+  set_tests_properties(cmake_slicer_gssapi_stub_test PROPERTIES
+    LABELS CMake
+    PASS_REGULAR_EXPRESSION "SUCCESS"
+    )
 endif()

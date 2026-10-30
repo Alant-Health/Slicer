@@ -1,6 +1,6 @@
 project(krb5-gssapi-stub C)
 
-if(APPLE OR WIN32)
+if(APPLE OR WIN32 OR Slicer_REQUIRED_QT_VERSION VERSION_GREATER_EQUAL "6")
   return()
 endif()
 

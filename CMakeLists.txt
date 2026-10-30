@@ -837,13 +837,19 @@ endif()
 # This controls whether a stub library named `libgssapi_krb5.so.2` is built
 # to satisfy GSSAPI symbol requirements in Qt5Network (see below).
 #
-# By default, the option is automatically set to ON only on Linux when
-# Slicer is **not using a system Qt**.
+# By default, the option is automatically set to ON only on Linux with Qt 5
+# when Slicer is **not using a system Qt**.
 #
 # You may override the default by configuring with:
 #   -DSlicer_BUILD_KRB5_GSSAPI_STUB:BOOL=ON or OFF
 #-----------------------------------------------------------------------------
-if(DEFINED Slicer_BUILD_KRB5_GSSAPI_STUB)
+if(Slicer_REQUIRED_QT_VERSION VERSION_GREATER_EQUAL "6")
+  if(Slicer_BUILD_KRB5_GSSAPI_STUB)
+    message(WARNING "Disabling Slicer_BUILD_KRB5_GSSAPI_STUB: the stub does not provide the GSSAPI functions required by Qt 6")
+  endif()
+  set(Slicer_BUILD_KRB5_GSSAPI_STUB OFF CACHE BOOL "Build the Qt 5 GSSAPI compatibility stub" FORCE)
+  set(Slicer_BUILD_KRB5_GSSAPI_STUB OFF)
+elseif(DEFINED Slicer_BUILD_KRB5_GSSAPI_STUB)
   if(Slicer_USE_SYSTEM_QT AND Slicer_BUILD_KRB5_GSSAPI_STUB)
     message(WARNING "Unsetting Slicer_BUILD_KRB5_GSSAPI_STUB because Slicer_USE_SYSTEM_QT is 'ON'")
     unset(Slicer_BUILD_KRB5_GSSAPI_STUB CACHE)
