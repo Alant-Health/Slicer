@@ -43,7 +43,11 @@ if(UNIX AND Slicer_USE_PYTHONQT)
     NAME slicer_macos_packaging_test
     COMMAND "${PYTHON_EXECUTABLE}" "${Slicer_SOURCE_DIR}/Utilities/Scripts/test_slicer_macos_packaging.py"
     )
-  set_tests_properties(slicer_macos_packaging_test PROPERTIES LABELS CMake TIMEOUT 180)
+  set_tests_properties(slicer_macos_packaging_test PROPERTIES
+    LABELS CMake
+    TIMEOUT 180
+    ENVIRONMENT "SLICER_TEST_CMAKE_COMMAND=${CMAKE_COMMAND}"
+    )
 endif()
 
 if(UNIX)

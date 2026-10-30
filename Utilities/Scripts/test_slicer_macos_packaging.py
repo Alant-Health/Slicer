@@ -14,6 +14,7 @@ from unittest import mock
 
 
 SOURCE = Path(os.environ.get("SLICER_MACOS_PACKAGING_SOURCE_DIR", Path(__file__).resolve().parents[2]))
+CMAKE_COMMAND = os.environ.get("SLICER_TEST_CMAKE_COMMAND", "cmake")
 
 
 def load_script(name):
@@ -84,7 +85,7 @@ class DependencyResolutionTest(PackageFixture):
         self.assertFalse((self.contents / "lib/Slicer-5.13/libtorch_cpu.dylib").exists())
 
 
-@unittest.skipUnless(shutil.which("cmake"), "CMake is required")
+@unittest.skipUnless(shutil.which(CMAKE_COMMAND), "CMake is required")
 class BundleVerificationTest(PackageFixture):
     def setUp(self):
         super().setUp()
@@ -103,7 +104,7 @@ class BundleVerificationTest(PackageFixture):
 
     def verify(self):
         return subprocess.run([
-            "cmake", "-DSlicer_INSTALL_DIR=" + str(self.root),
+            CMAKE_COMMAND, "-DSlicer_INSTALL_DIR=" + str(self.root),
             "-DOTOOL_EXECUTABLE=" + str(self.otool),
             "-P", str(SOURCE / "CMake/SlicerCPackBundleVerify.cmake"),
         ], capture_output=True, text=True, check=False)
@@ -237,7 +238,7 @@ class NativeBundleTest(PackageFixture):
             self.assertNotIn(str(sdk), close.scan(str(binary))[1])
         self.assertTrue(signer.sign_bundle(str(self.app), "-"))
         verification = subprocess.run([
-            "cmake", "-DSlicer_INSTALL_DIR=" + str(self.root),
+            CMAKE_COMMAND, "-DSlicer_INSTALL_DIR=" + str(self.root),
             "-P", str(SOURCE / "CMake/SlicerCPackBundleVerify.cmake"),
         ], capture_output=True, text=True, check=False)
         self.assertEqual(verification.returncode, 0, verification.stdout + verification.stderr)
