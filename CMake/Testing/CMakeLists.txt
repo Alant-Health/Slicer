@@ -59,3 +59,18 @@ if(UNIX)
     PASS_REGULAR_EXPRESSION "SUCCESS"
     )
 endif()
+
+if(CMAKE_SYSTEM_NAME STREQUAL "Linux" AND NOT CMAKE_CROSSCOMPILING)
+  add_test(
+    NAME cmake_slicer_qt_library_install_test
+    COMMAND ${CMAKE_COMMAND}
+      "-DSlicer_SOURCE_DIR=${Slicer_SOURCE_DIR}"
+      "-DTEST_BINARY_DIR=${CMAKE_CURRENT_BINARY_DIR}/SlicerQtLibraryInstallTest"
+      "-DTEST_C_COMPILER=${CMAKE_C_COMPILER}"
+      -P "${CMAKE_CURRENT_SOURCE_DIR}/SlicerQtLibraryInstallTest.cmake"
+    )
+  set_tests_properties(cmake_slicer_qt_library_install_test PROPERTIES
+    LABELS CMake
+    PASS_REGULAR_EXPRESSION "SUCCESS"
+    )
+endif()

@@ -2,13 +2,17 @@
 # Find and install Qt
 # -------------------------------------------------------------------------
 set(QT_INSTALL_LIB_DIR ${Slicer_INSTALL_LIB_DIR})
+set(_qt_webengine_target "Qt${CTK_QT_VERSION}::WebEngine")
+if(CTK_QT_VERSION VERSION_GREATER_EQUAL "6")
+  set(_qt_webengine_target "Qt${CTK_QT_VERSION}::WebEngineCore")
+endif()
 
   list(APPEND QT_LIBRARIES
     "Qt${CTK_QT_VERSION}::Gui"
     )
 
   # WebEngine Dependencies
-  if("Qt${CTK_QT_VERSION}::WebEngine" IN_LIST QT_LIBRARIES)
+  if(_qt_webengine_target IN_LIST QT_LIBRARIES)
     find_package(Qt${CTK_QT_VERSION} REQUIRED
       COMPONENTS
         Qml
@@ -77,6 +81,14 @@ set(QT_INSTALL_LIB_DIR ${Slicer_INSTALL_LIB_DIR})
       list(APPEND QT_LIBRARIES
         "Qt${CTK_QT_VERSION}::X11Extras"
         )
+    else()
+      # Recent Qt 6 versions split Quick and Multimedia dependencies into
+      # additional shared libraries. Older SDKs may not provide these targets.
+      foreach(component Concurrent QmlMeta QmlWorkerScript)
+        if(TARGET Qt${CTK_QT_VERSION}::${component})
+          list(APPEND QT_LIBRARIES Qt${CTK_QT_VERSION}::${component})
+        endif()
+      endforeach()
     endif()
 
     # XcbQpa
@@ -94,7 +106,7 @@ set(QT_INSTALL_LIB_DIR ${Slicer_INSTALL_LIB_DIR})
     endforeach()
 
     # WebEngine Dependencies
-    if("Qt${CTK_QT_VERSION}::WebEngine" IN_LIST QT_LIBRARIES)
+    if(_qt_webengine_target IN_LIST QT_LIBRARIES)
       install(PROGRAMS ${qt_root_dir}/libexec/QtWebEngineProcess
         DESTINATION ${Slicer_INSTALL_ROOT}/libexec COMPONENT Runtime
         )
@@ -108,14 +120,8 @@ set(QT_INSTALL_LIB_DIR ${Slicer_INSTALL_LIB_DIR})
         COMPONENT Runtime)
     endif()
 
-    if(TARGET Qt5::Core)
-      set(_qt_version "${Qt5_VERSION_MAJOR}.${Qt5_VERSION_MINOR}.${Qt5_VERSION_PATCH}")
-    elseif(TARGET Qt6::Core)
-      set(_qt_version "${Qt6_VERSION_MAJOR}.${Qt6_VERSION_MINOR}.${Qt6_VERSION_PATCH}")
-    else()
-      message(FATAL_ERROR "Failed to locate target Qt5::Core or Qt6::Core")
-    endif()
-
+    set(_qt_version "${Qt${CTK_QT_VERSION}_VERSION_MAJOR}.${Qt${CTK_QT_VERSION}_VERSION_MINOR}.${Qt${CTK_QT_VERSION}_VERSION_PATCH}")
+    list(REMOVE_DUPLICATES QT_LIBRARIES)
     foreach(target ${QT_LIBRARIES})
       get_target_property(type ${target} TYPE)
       if(NOT type STREQUAL "SHARED_LIBRARY")
@@ -144,7 +150,7 @@ set(QT_INSTALL_LIB_DIR ${Slicer_INSTALL_LIB_DIR})
       )
 
     # Install webengine translations
-    if("Qt${CTK_QT_VERSION}::WebEngine" IN_LIST QT_LIBRARIES)
+    if(_qt_webengine_target IN_LIST QT_LIBRARIES)
       set(translations_dir "${qt_root_dir}/translations/qtwebengine_locales")
       install(DIRECTORY ${translations_dir}
         DESTINATION ${Slicer_INSTALL_ROOT}/share/QtTranslations/ COMPONENT Runtime
